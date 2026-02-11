@@ -1,32 +1,37 @@
-# UL-UNAS
+# UL-UNAS (48kHz Fork)
+
+This repository is forked from [Xiaobin-Rong/ul-unas](https://github.com/Xiaobin-Rong/ul-unas), the official implementation of the *IEEE TASLP* paper:
+
+> [UL-UNAS: Ultra-Lightweight U-Nets for Real-Time Speech Enhancement via Network Architecture Search](https://arxiv.org/abs/2503.00340)  
+> by Xiaobin Rong, Dahan Wang, Yuxiang Hu, Changbao Zhu, Kai Chen, and Jing Lu
+
 [![arxiv](https://img.shields.io/badge/arXiv-Paper-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2503.00340)
 [![demo](https://img.shields.io/badge/GitHub-Demo-orange.svg)](https://xiaobin-rong.github.io/ul-unas_demo/)
 
-🎉 This is the official implementation of our *IEEE TASLP* paper: 
+## Modifications in This Fork
 
-[UL-UNAS: Ultra-Lightweight U-Nets for Real-Time Speech Enhancement via Network Architecture Search](https://arxiv.org/abs/2503.00340)
+This fork extends the original 16kHz UL-UNAS with the following improvements:
 
-## 🔥 News
-- [**2026-2-3**] The updated paper is uploaded to arxiv.
-- [**2026-2-1**] The pre-trained checkpoint is released.
-- [**2026-1-28**] The model implementation is released.
+### 1. High-Quality Audio Support (48kHz)
+- Extended the model to support **48 kHz sampling rate** for high-fidelity speech enhancement
+- Adjusted STFT parameters: FFT size 960, hop length 480
+- Modified ERB filter bank configuration for 48kHz (80 low subbands + 41 high subbands)
 
-## Inference
-To run inference on audio files, use:
+### 2. DNS5 Dataset Training
+- Trained on the **DNS5 (Deep Noise Suppression Challenge 5)** dataset
+- Improved noise robustness across diverse real-world scenarios
 
-```bash
-python inference --input_dir <input_dir> --output_dir <output_dir> [options]
-```
+### 3. Enhanced Loss Function
+The training loss has been enhanced with two additional components:
+- **Energy Ceiling Loss**: Suppresses artifacts and over-amplification for quiet sounds
+- **Loudness Loss**: Improves perceptual quality by matching the loudness characteristics of clean speech
 
-| Argument       | Requirement / Default | Description                                                  |
-|----------------|-----------------------|--------------------------------------------------------------|
-| `--input_dir`  | **required**          | Path to the input directory containing audio files.          |
-| `--output_dir` | **required**          | Path to the output directory where enhanced files will be saved. |
-| `--device`     | default: `cuda:0`     | Torch device to run inference on, e.g., `cuda:0`, `cuda:1`, or `cpu`. |
-| `--extension`  | default: `.wav`       | Audio file extension to process.                             |
+Combined with the original loss terms (RI loss, magnitude loss, short-time loss, Si-SNR), the model achieves better subjective and objective quality.
 
 ## Citation
-If you find this work useful, please cite our paper:
+
+If you use this work, please cite the original paper:
+
 ```bibtex
 @misc{rong2025ulunas,
       title={UL-UNAS: Ultra-Lightweight U-Nets for Real-Time Speech Enhancement via Network Architecture Search}, 
@@ -40,4 +45,5 @@ If you find this work useful, please cite our paper:
 ```
 
 ## Contact
-Xiaobin Rong: [xiaobin.rong@smail.nju.edu.cn](mailto:xiaobin.rong@smail.nju.edu.cn)
+
+Fork Maintainer: [a2heng](https://github.com/a2heng)

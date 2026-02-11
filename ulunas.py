@@ -8,11 +8,12 @@ from einops import rearrange
 
 
 class ERB(nn.Module):
-    def __init__(self, erb_subband_1, erb_subband_2, nfft=512, high_lim=8000, fs=16000):
+    def __init__(self, erb_subband_1, erb_subband_2, nfft=960, high_lim=24000, fs=48000):
         super().__init__()
         erb_filters = self.erb_filter_banks(erb_subband_1, erb_subband_2, nfft, high_lim, fs)
         nfreqs = nfft//2 + 1
         self.erb_subband_1 = erb_subband_1
+        self.erb_subband_2 = erb_subband_2
         self.erb_fc = nn.Linear(nfreqs-erb_subband_1, erb_subband_2, bias=False)
         self.ierb_fc = nn.Linear(erb_subband_2, nfreqs-erb_subband_1, bias=False)
         self.erb_fc.weight = nn.Parameter(erb_filters, requires_grad=False)
@@ -26,7 +27,7 @@ class ERB(nn.Module):
         freq_hz = (10**(erb_f/21.4) - 1)/0.00437
         return freq_hz
 
-    def erb_filter_banks(self, erb_subband_1, erb_subband_2, nfft=512, high_lim=8000, fs=16000):
+    def erb_filter_banks(self, erb_subband_1, erb_subband_2, nfft=960, high_lim=24000, fs=48000):
         low_lim = erb_subband_1/nfft * fs
         erb_low = self.hz2erb(low_lim)
         erb_high = self.hz2erb(high_lim)
@@ -218,7 +219,7 @@ class XDWSBlock(nn.Module):
 
         if stride == 2:
             if not use_deconv:
-                in_width = width * 2 -1
+                in_width = width * 2 - 1
             else:
                 in_width = width // 2 + 1
         else:
@@ -230,7 +231,7 @@ class XDWSBlock(nn.Module):
             AffinePReLU(out_channels, in_width),
             Shuffle() if groups==2 else nn.Identity()
         )
-        
+
         self.dconv = nn.Sequential(
             nn.ZeroPad2d([0, 0, kt - 1, 0]),
             conv_module(out_channels, out_channels, kernel_size,
@@ -238,9 +239,9 @@ class XDWSBlock(nn.Module):
             nn.BatchNorm2d(out_channels),
             AffinePReLU(out_channels, width) if not is_last else nn.Identity(),
             cTFA(out_channels, width)
-        )     
+        )
 
-        
+
     def forward(self, x):
         """x: (B, C, T, F)"""
         h = self.pconv(x)
@@ -277,7 +278,7 @@ class XMBBlocks(nn.Module):
 
         if stride == 2:
             if not use_deconv:
-                in_width = width * 2 -1
+                in_width = width * 2 - 1
             else:
                 in_width = width // 2 + 1
         else:
@@ -295,7 +296,7 @@ class XMBBlocks(nn.Module):
                         stride=(1, stride), padding=(pt, pf), groups=out_channels),
             nn.BatchNorm2d(out_channels),
             AffinePReLU(out_channels, width)
-        )        
+        )
         self.pconv2 = nn.Sequential(
             nn.Conv2d(out_channels, out_channels, 1, groups=groups),
             nn.BatchNorm2d(out_channels),
@@ -308,7 +309,7 @@ class XMBBlocks(nn.Module):
         x = self.pconv1(x)
         x = self.dconv(x)
         x = self.pconv2(x)
-        
+
         if x.shape == input.shape:
             x = x + input
 
@@ -466,25 +467,26 @@ class Decoder(nn.Module):
 class ULUNAS(nn.Module):
     def __init__(
         self,
-        n_fft=512,
-        hop_len=256,
-        win_len=512,
-        erb_low=65,
-        erb_high=64,
+        n_fft=960,
+        hop_len=480,
+        win_len=960,
+        erb_low=80,
+        erb_high=41,
+        high_lim=24000,
+        fs=48000,
         types=[0, 2, 1, 2, 1],
         strides=[2, 2, 1, 1, 1],
         groups=[1, 2, 2, 2, 2],
         channels=[12, 24, 24, 32, 16],
         kernels=[(3, 3), (2, 3), (2, 3), (1, 5), (1, 5)],
-        widths=[65, 33, 33, 33, 33]
-        
+        widths=[61, 31, 31, 31, 31]
     ):
         super().__init__()
         self.n_fft = n_fft
         self.hop_len = hop_len
         self.win_len = win_len
         
-        self.erb = ERB(erb_low, erb_high, nfft=n_fft, high_lim=8000, fs=16000)
+        self.erb = ERB(erb_low, erb_high, nfft=n_fft, high_lim=high_lim, fs=fs)
 
         self.encoder = Encoder(types, channels, widths, kernels, strides, groups)
         
@@ -537,7 +539,7 @@ if __name__ == "__main__":
 
     """complexity count"""
     from ptflops import get_model_complexity_info
-    macs, params = get_model_complexity_info(model, (16000,), as_strings=False,
+    macs, params = get_model_complexity_info(model, (48000,), as_strings=False,
                                             print_per_layer_stat=False, verbose=False)
     params = 0
     for p in model.parameters():
@@ -546,16 +548,16 @@ if __name__ == "__main__":
 
 
     """causality check"""
-    a = torch.randn(1, 16000)
-    b = torch.randn(1, 16000)
-    c = torch.randn(1, 16000)
+    a = torch.randn(1, 48000)
+    b = torch.randn(1, 48000)
+    c = torch.randn(1, 48000)
     x1 = torch.cat([a, b], dim=1)
     x2 = torch.cat([a, c], dim=1)
 
     y1 = model(x1)[0]
     y2 = model(x2)[0]
 
-    stft_latency = 256*2
-    err = (y1[:16000-stft_latency] - y2[:16000-stft_latency]).abs().max()
+    stft_latency = 480*2
+    err = (y1[:48000-stft_latency] - y2[:48000-stft_latency]).abs().max()
     if err < 1e-8:
         print("The model is causal, without any look ahead.")
