@@ -55,13 +55,11 @@ OPSET_VERSION = 14          # ONNX opset version
 OUTPUT_PREFIX = 'output_ulunas'  # Output directory prefix
 
 # Loss record names (consistent with HybridLoss return order)
+# HybridLoss returns: total, ri_loss, mag_loss, sisnr
 LOSS_A = 'A_Total'
 LOSS_B = 'B_RI'
 LOSS_C = 'C_Mag'
-LOSS_D = 'D_Loudness'
-LOSS_E = 'E_EnergyCeiling'
-LOSS_F = 'F_ShortTime'
-LOSS_G = 'G_SISNR'
+LOSS_D = 'D_SISNR'
 
 
 def compute_stft(waveform, n_fft, hop_length, win_length, window, device):
@@ -1204,7 +1202,7 @@ def main():
         )
 
         model.train()
-        epoch_losses = {k: 0.0 for k in ['A', 'B', 'C', 'D', 'E', 'F', 'G']}
+        epoch_losses = {k: 0.0 for k in ['A', 'B', 'C', 'D']}
 
         pbar = tqdm(train_loader, total=len(train_loader),
                    desc=f'Epoch {epoch}/{total_epochs}', ncols=70)
@@ -1261,7 +1259,7 @@ def main():
                 optimizer.step()
 
             # Record losses
-            loss_names = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+            loss_names = ['A', 'B', 'C', 'D']
             for i, name in enumerate(loss_names):
                 loss_val = losses[i].item()
                 epoch_losses[name] += loss_val
@@ -1276,7 +1274,7 @@ def main():
 
         # Validation
         model.eval()
-        val_losses = {k: 0.0 for k in ['A', 'B', 'C', 'D', 'E', 'F', 'G']}
+        val_losses = {k: 0.0 for k in ['A', 'B', 'C', 'D']}
 
         with torch.no_grad():
             pbar_val = tqdm(val_loader, total=len(val_loader), desc='Validation', ncols=70)

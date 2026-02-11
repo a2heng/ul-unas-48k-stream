@@ -8,25 +8,39 @@ This repository is forked from [Xiaobin-Rong/ul-unas](https://github.com/Xiaobin
 [![arxiv](https://img.shields.io/badge/arXiv-Paper-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2503.00340)
 [![demo](https://img.shields.io/badge/GitHub-Demo-orange.svg)](https://xiaobin-rong.github.io/ul-unas_demo/)
 
-## Modifications in This Fork
+## Adaptations in This Fork
 
-This fork extends the original 16kHz UL-UNAS with the following improvements:
+This fork adapts the original 16kHz UL-UNAS for 48kHz high-quality audio processing with some minor modifications.
 
-### 1. High-Quality Audio Support (48kHz)
-- Extended the model to support **48 kHz sampling rate** for high-fidelity speech enhancement
+### 1. 48kHz Audio Support
+Adapted the model to support **48 kHz sampling rate**:
 - Adjusted STFT parameters: FFT size 960, hop length 480
 - Modified ERB filter bank configuration for 48kHz (80 low subbands + 41 high subbands)
 
-### 2. DNS5 Dataset Training
-- Trained on the **DNS5 (Deep Noise Suppression Challenge 5)** dataset
-- Improved noise robustness across diverse real-world scenarios
+### 2. DNS5 Dataset
+Retrained the model on the **DNS5 (Deep Noise Suppression Challenge 5)** dataset for broader noise scenarios.
 
-### 3. Enhanced Loss Function
-The training loss has been enhanced with two additional components:
-- **Energy Ceiling Loss**: Suppresses artifacts and over-amplification for quiet sounds
-- **Loudness Loss**: Improves perceptual quality by matching the loudness characteristics of clean speech
 
-Combined with the original loss terms (RI loss, magnitude loss, short-time loss, Si-SNR), the model achieves better subjective and objective quality.
+## Minor Improvements
+
+### 3. Simplified GRNN Architecture
+Made a small modification to the **GRNN (Grouped RNN)** module:
+- Replaced the original dual-GRU design with a single standard GRU
+- This slightly reduces computational overhead and CPU usage
+
+### 4. Streaming Inference Support
+Added basic streaming inference capability with state management:
+- **StreamingConvBuffer**: Handles convolution buffers for causal padding
+- **StreamingGRUState**: Manages hidden states frame by frame
+- **ONNX Export**: Supports exporting to ONNX format with explicit state I/O for edge deployment
+
+## Notes on Model Architecture
+
+The model architecture parameters (channel sizes, kernel sizes, block types, etc.) are kept consistent with the original paper. However, please note that:
+
+- The original paper performed Neural Architecture Search (NAS) specifically for **16 kHz** audio
+- This fork uses the same architecture for **48 kHz** without re-running the search
+- The 48 kHz configuration may benefit from further architecture optimization, as the optimal parameters could differ from the 16 kHz version
 
 ## Citation
 
@@ -47,3 +61,5 @@ If you use this work, please cite the original paper:
 ## Contact
 
 Fork Maintainer: [a2heng](https://github.com/a2heng)
+
+Original Author: Xiaobin Rong [xiaobin.rong@smail.nju.edu.cn](mailto:xiaobin.rong@smail.nju.edu.cn)

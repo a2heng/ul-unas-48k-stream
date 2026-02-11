@@ -319,47 +319,40 @@ class XMBBlocks(nn.Module):
       
 
 class GRNN(nn.Module):
-    """Grouped RNN"""
+    """Grouped RNN - single GRU with grouped feature processing"""
     def __init__(self, input_size, hidden_size, num_layers=1, batch_first=True, bidirectional=False):
         super().__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.bidirectional = bidirectional
-        self.rnn1 = nn.GRU(input_size//2, hidden_size//2, num_layers, batch_first=batch_first, bidirectional=bidirectional)
-        self.rnn2 = nn.GRU(input_size//2, hidden_size//2, num_layers, batch_first=batch_first, bidirectional=bidirectional)
+        self.rnn = nn.GRU(input_size, hidden_size, num_layers, batch_first=batch_first, bidirectional=bidirectional)
 
     def forward(self, x, h=None):
         """
         x: (B, seq_length, input_size)
-        h: (num_layers, B, hidden_size)
+        h: (num_layers, B, hidden_size) or (num_layers*2, B, hidden_size) if bidirectional
         """
-        if h== None:
-            if self.bidirectional:
-                h = torch.zeros(self.num_layers*2, x.shape[0], self.hidden_size, device=x.device)
-            else:
-                h = torch.zeros(self.num_layers, x.shape[0], self.hidden_size, device=x.device)
-        x1, x2 = torch.chunk(x, chunks=2, dim=-1)
-        h1, h2 = torch.chunk(h, chunks=2, dim=-1)
-        h1, h2 = h1.contiguous(), h2.contiguous()
-        y1, h1 = self.rnn1(x1, h1)
-        y2, h2 = self.rnn2(x2, h2)
-        y = torch.cat([y1, y2], dim=-1)
-        h = torch.cat([h1, h2], dim=-1)
+        if h is None:
+            num_directions = 2 if self.bidirectional else 1
+            h = torch.zeros(self.num_layers * num_directions, x.shape[0], self.hidden_size, device=x.device)
+        y, h = self.rnn(x, h)
         return y, h
 
 
 class DPGRNN(nn.Module):
-    """Grouped Dual-path RNN"""
+    """Dual-path RNN"""
     def __init__(self, input_size, width, hidden_size, **kwargs):
         super(DPGRNN, self).__init__(**kwargs)
         self.input_size = input_size
         self.width = width
         self.hidden_size = hidden_size
 
+        # intra_rnn: bidirectional, output = hidden_size//2 * 2 = hidden_size
         self.intra_rnn = GRNN(input_size=input_size, hidden_size=hidden_size//2, bidirectional=True)
         self.intra_fc = nn.Linear(hidden_size, input_size)
         self.intra_ln = nn.LayerNorm((width, input_size), eps=1e-8)
 
+        # inter_rnn: unidirectional, output = hidden_size
         self.inter_rnn = GRNN(input_size=input_size, hidden_size=hidden_size, bidirectional=False)
         self.inter_fc = nn.Linear(hidden_size, input_size)
         self.inter_ln = nn.LayerNorm(((width, input_size)), eps=1e-8)
